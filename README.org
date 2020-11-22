@@ -1,0 +1,2 @@
+* Evil-Wildfire
+  ~evil-wildfire~ is a package can smartly help user to select the objects in ~evil-mode~.

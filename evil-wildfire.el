@@ -3,7 +3,7 @@
 ;; Author: SpringHan
 ;; Maintainer: SpringHan
 ;; Version: 1.0
-;; Package-Requires: ((emacs "26.3") evil)
+;; Package-Requires: ((emacs "26.3") (evil "0"))
 ;; Homepage: https://github.com/SpringHan/evil-wildfire.git
 ;; Keywords: Selection, Smart
 

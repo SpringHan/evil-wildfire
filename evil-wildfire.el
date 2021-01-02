@@ -30,6 +30,8 @@
 
 ;;; Code:
 
+(require 'evil)
+
 (defgroup evil-wildfire nil
   "The group of `evil-wildfire'."
   :group 'evil)
@@ -39,7 +41,8 @@
     ("'" . "'")
     ("[" . "]")
     ("<" . ">")
-    ("(" . ")"))
+    ("(" . ")")
+    ("{" . "}"))
   "The global symbol alist."
   :group 'evil-wildfire)
 
@@ -48,19 +51,32 @@
   :type 'string
   :group 'evil-wildfire)
 
-
-(defcustom evil-wildfire-catch-char-key "SPC"
+(defcustom evil-wildfire-catch-char-key "C-<return>"
   "The key for catch."
   :type 'string
   :group 'evil-wildfire)
+
+(defvar global-evil-wildfire-status nil
+  "The status for `global-evil-wildfire-mode'")
 
 (defun evil-wildfire-init ()
   "Enable evil-wildfire."
   (when (featurep 'evil)
     (evil-wildfire-mode 1)))
 
-(define-globalized-minor-mode global-evil-wildfire-mode
-  evil-wildfire-mode evil-wildfire-init)
+(define-minor-mode global-evil-wildfire-mode
+  "Global mode for `evil-wildfire-mode'"
+  nil nil nil
+  (if global-evil-wildfire-status
+      (progn
+        (remove-hook 'evil-local-mode-hook #'evil-wildfire-mode t)
+        (when evil-wildfire-mode
+          (evil-wildfire-mode -1))
+        (setq global-evil-wildfire-status nil))
+    (add-hook 'evil-local-mode-hook #'evil-wildfire-mode t)
+    (unless evil-wildfire-mode
+      (evil-wildfire-mode t))
+    (setq global-evil-wildfire-status t)))
 
 (define-minor-mode evil-wildfire-mode
   "The minor mode for `evil-wildfire'."
@@ -79,6 +95,103 @@
     (define-key evil-motion-state-map (kbd evil-wildfire-catch-char-key) 'evil-forward-char)
     (define-key evil-visual-state-map (kbd evil-wildfire-catch-key) 'evil-ret)
     (define-key evil-visual-state-map (kbd evil-wildfire-catch-char-key) 'evil-forward-char)))
+
+(defun evil-wildfire-catch (&optional char)
+  "Catch region."
+  (interactive)
+  (let (prefix-point second-char second-point tmp)
+    (save-mark-and-excursion
+      (when (region-active-p)
+        (backward-char))
+      ;; Get the `prefix-point'
+      (if char
+          (setq prefix-point
+                (catch 'point-stop
+                  (while t
+                    (if (string=
+                         char
+                         (setq tmp
+                               (buffer-substring-no-properties (point) (1+ (point)))))
+                        (throw 'point-stop (point))
+                      (if (bobp)
+                          (throw 'point-stop nil)
+                        (backward-char))))))
+        (setq prefix-point
+              (catch 'point-stop
+                (while t
+                  (if (evil-wildfire--get-second-char
+                       (setq tmp (buffer-substring-no-properties (point) (1+ (point)))))
+                      (progn
+                        (setq char tmp)
+                        (throw 'point-stop (point)))
+                    (if (bobp)
+                        (throw 'point-stop nil)
+                      (backward-char)))))))
+
+      (if (not char)
+          (message "[Evil-Wildfire]: Can not find a symbol in alist.")
+        (setq second-char (evil-wildfire--get-second-char char)
+              second-point (evil-wildfire-format-point char second-char))))
+    (goto-char prefix-point)
+    (push-mark second-point t t)))
+
+(defun evil-wildfire-catch-by-char (char)
+  "Catch region by CHAR."
+  (interactive (list (char-to-string (read-char))))
+  (if (evil-wildfire--get-second-char char)
+      (evil-wildfire-catch char)
+    (message "[Evil-Wildfire]: %s is not defined in the symbol alist." char)))
+
+(defun evil-wildfire-format-point (prefix second-char)
+  "Format point with the PREFIX."
+  (let ((times 1)
+        tmp)
+    (forward-char)
+    (while (/= times 0)
+      (setq tmp (buffer-substring-no-properties (point) (1+ (point))))
+      (cond ((and (string= tmp prefix) (not (string= prefix second-char)))
+             (setq times (1+ times)))
+            ((and (string= tmp second-char) (> times 0))
+             (setq times (1- times)))
+            ((and (string= tmp second-char) (= times -1))
+             (setq times 0)))
+      (forward-char))
+    (point)))
+
+(defun evil-wildfire--get-second-char (prefix)
+  "Get the second char by the PREFIX."
+  (catch 'second-char
+    (dolist (char-cons evil-wildfire-global-symbol-alist)
+      (when (string= prefix (car char-cons))
+        (throw 'second-char (cdr char-cons))))))
+
+(defun evil-wildfire--symbol-exists-p (symbol)
+  "Check if the SYMBOL is exists."
+  (catch 'exists
+    (let ((index 0))
+      (dolist (symbol-cons evil-wildfire-global-symbol-alist)
+        (when (string= symbol (car symbol-cons))
+          (throw 'exists index))
+        (setq index (1+ index))))))
+
+(defmacro evil-wildfire-mode-defalist (mode-name &rest alist)
+  "Define alist for major mode."
+  (declare (indent 1))
+  `(let ((sym-alist evil-wildfire-global-symbol-alist)
+         tmp)
+     (dolist (list ,alist)
+       (if (setq tmp (evil-wildfire--symbol-exists-p (car list)))
+           (setf (cdr (nth tmp sym-alist)) (cdr list))
+         (add-to-list 'sym-alist list)))
+     (add-hook (intern (concat (symbol-name ,mode-name) "-hook"))
+               `(lambda () (setq-local evil-wildfire-global-symbol-alist
+                                       ,sym-alist)))))
+
+;;; Init
+(add-hook 'emacs-lisp-mode-hook
+          #'(lambda () (setq-local evil-wildfire-global-symbol-alist
+                                   (delete '("'" . "'")
+                                           evil-wildfire-global-symbol-alist))))
 
 (provide 'evil-wildfire)
 

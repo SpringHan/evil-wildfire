@@ -1,2 +1,20 @@
 * Evil-Wildfire
   ~evil-wildfire~ is a package can smartly help user to select the objects in ~evil-mode~.
+** Functions
+   - ~(evil-wildfire-catch)~
+     
+     This functions is used to select the nearlist symbol item. And it's binded to ~RET~ in ~evil-mode~ (You can change it by ~evil-wildfire-catch-key~).
+
+   - ~(evil-wildfire-catch-by-char)~
+
+     This function can let you use a charactor which is in the ~evil-wildfire-global-symbol-alist~ to select the item covered with it. It's binded to ~C-RET~ in ~evil-mode~ (You can change it by ~evil-wildfire-catch-char-key~).
+
+   - ~(evil-wildfire-mode-defalist)~
+
+     This macro let you define the symbol alist for a major mode. If the list is not exists, it'll be added.Otherwise it'll replace the original one.
+     e.g.:
+     #+begin_src emacs-lisp
+       (evil-wildfire-mode-defalist 'emacs-lisp-mode
+         '("$" . "$")
+         '("^" . "^"))
+     #+end_src

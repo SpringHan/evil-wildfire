@@ -51,9 +51,19 @@
   :type 'string
   :group 'evil-wildfire)
 
+(defcustom evil-wildfire-catch-parent-key "M-RET"
+  "The key for catch."
+  :type 'string
+  :group 'evil-wildfire)
+
 (defcustom evil-wildfire-catch-char-key "C-<return>"
   "The key for catch."
   :type 'string
+  :group 'evil-wildfire)
+
+(defcustom evil-wildfire-last-points nil
+  "The last point cons."
+  :type 'cons
   :group 'evil-wildfire)
 
 (defvar global-evil-wildfire-status nil
@@ -85,55 +95,68 @@
       (progn
         (define-key evil-normal-state-map (kbd evil-wildfire-catch-key) 'evil-wildfire-catch)
         (define-key evil-normal-state-map (kbd evil-wildfire-catch-char-key) 'evil-wildfire-catch-by-char)
+        (define-key evil-normal-state-map (kbd evil-wildfire-catch-parent-key) 'evil-wildfire-catch-parent)
         (define-key evil-motion-state-map (kbd evil-wildfire-catch-key) 'evil-wildfire-catch)
         (define-key evil-motion-state-map (kbd evil-wildfire-catch-char-key) 'evil-wildfire-catch-by-char)
+        (define-key evil-motion-state-map (kbd evil-wildfire-catch-parent-key) 'evil-wildfire-catch-parent)
         (define-key evil-visual-state-map (kbd evil-wildfire-catch-key) 'evil-wildfire-catch)
+        (define-key evil-visual-state-map (kbd evil-wildfire-catch-parent-key) 'evil-wildfire-catch-parent)
         (define-key evil-visual-state-map (kbd evil-wildfire-catch-char-key) 'evil-wildfire-catch-by-char))
     (define-key evil-normal-state-map (kbd evil-wildfire-catch-key) 'evil-ret)
+    (define-key evil-normal-state-map (kbd evil-wildfire-catch-parent-key) 'nil)
     (define-key evil-normal-state-map (kbd evil-wildfire-catch-char-key) 'evil-forward-char)
+    (define-key evil-motion-state-map (kbd evil-wildfire-catch-parent-key) 'nil)
     (define-key evil-motion-state-map (kbd evil-wildfire-catch-key) 'evil-ret)
     (define-key evil-motion-state-map (kbd evil-wildfire-catch-char-key) 'evil-forward-char)
     (define-key evil-visual-state-map (kbd evil-wildfire-catch-key) 'evil-ret)
+    (define-key evil-visual-state-map (kbd evil-wildfire-catch-parent-key) 'nil)
     (define-key evil-visual-state-map (kbd evil-wildfire-catch-char-key) 'evil-forward-char)))
 
-(defun evil-wildfire-catch (&optional char)
+(defun evil-wildfire-catch (&optional char parent)
   "Catch region."
   (interactive)
-  (let (prefix-point second-char second-point tmp)
-    (save-mark-and-excursion
-      (when (region-active-p)
-        (backward-char))
-      ;; Get the `prefix-point'
-      (if char
-          (setq prefix-point
-                (catch 'point-stop
-                  (while t
-                    (if (string=
-                         char
-                         (setq tmp
-                               (buffer-substring-no-properties (point) (1+ (point)))))
-                        (throw 'point-stop (point))
-                      (if (bobp)
-                          (throw 'point-stop nil)
-                        (backward-char))))))
-        (setq prefix-point
-              (catch 'point-stop
-                (while t
-                  (if (evil-wildfire--get-second-char
-                       (setq tmp (buffer-substring-no-properties (point) (1+ (point)))))
-                      (progn
-                        (setq char tmp)
-                        (throw 'point-stop (point)))
-                    (if (bobp)
-                        (throw 'point-stop nil)
-                      (backward-char)))))))
+  (when
+      (catch 'stop
+        (let (prefix-point second-char second-point tmp)
+          (save-mark-and-excursion
+            (when (region-active-p)
+              (backward-char))
+            ;; Get the `prefix-point'
+            (if char
+                (setq prefix-point
+                      (catch 'point-stop
+                        (while t
+                          (if (string=
+                               char
+                               (setq tmp
+                                     (buffer-substring-no-properties (point) (1+ (point)))))
+                              (throw 'point-stop (point))
+                            (if (bobp)
+                                (throw 'point-stop nil)
+                              (backward-char))))))
+              (setq prefix-point
+                    (catch 'point-stop
+                      (while t
+                        (if (evil-wildfire--get-second-char
+                             (setq tmp (buffer-substring-no-properties (point) (1+ (point)))))
+                            (progn
+                              (setq char tmp)
+                              (throw 'point-stop (point)))
+                          (if (bobp)
+                              (throw 'point-stop nil)
+                            (backward-char)))))))
 
-      (if (not char)
-          (message "[Evil-Wildfire]: Can not find a symbol in alist.")
-        (setq second-char (evil-wildfire--get-second-char char)
-              second-point (evil-wildfire-format-point char second-char))))
-    (goto-char prefix-point)
-    (push-mark second-point t t)))
+            (if (not char)
+                (message "[Evil-Wildfire]: Can not find a symbol in alist.")
+              (setq second-char (evil-wildfire--get-second-char char)
+                    second-point (evil-wildfire-format-point char second-char))
+              (if (and parent (> (cdr evil-wildfire-last-points) second-point))
+                  (throw 'stop t)
+                (setq-local evil-wildfire-last-points (cons prefix-point second-point)))))
+          (goto-char prefix-point)
+          (push-mark second-point t t)))
+    (backward-char)
+    (evil-wildfire-catch char t)))
 
 (defun evil-wildfire-catch-by-char (char)
   "Catch region by CHAR."
@@ -141,6 +164,11 @@
   (if (evil-wildfire--get-second-char char)
       (evil-wildfire-catch char)
     (message "[Evil-Wildfire]: %s is not defined in the symbol alist." char)))
+
+(defun evil-wildfire-catch-parent ()
+  "Catch region for its parent."
+  (interactive)
+  (evil-wildfire-catch nil t))
 
 (defun evil-wildfire-format-point (prefix second-char)
   "Format point with the PREFIX."

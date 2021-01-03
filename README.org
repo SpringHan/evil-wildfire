@@ -9,6 +9,10 @@
 
      This function can let you use a charactor which is in the ~evil-wildfire-global-symbol-alist~ to select the item covered with it. It's binded to ~C-RET~ in ~evil-mode~ (You can change it by ~evil-wildfire-catch-char-key~).
 
+   - ~(evil-wildfire-catch-parent)~
+
+     This function make you can catch the parent of current selected item. It's binded to ~M-RET~ (You can change it by ~evil-wildfire-catch-parent-key~).
+
    - ~(evil-wildfire-mode-defalist)~
 
      This macro let you define the symbol alist for a major mode. If the list is not exists, it'll be added.Otherwise it'll replace the original one.

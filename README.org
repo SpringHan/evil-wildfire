@@ -1,4 +1,6 @@
 * Evil-Wildfire
+  Now, I'm using [[https://github.com/SpringHan/sniem][Sniem]] instead of evil, so this repository is locked.
+  Evil-wildfire is moved to [[https://github.com/SpringHan/sniem/blob/master/sniem-object-catch.el][sniem-object-catch]].
   ~evil-wildfire~ is a package can smartly help user to select the objects in ~evil-mode~.
 ** Functions
    - ~(evil-wildfire-catch)~
